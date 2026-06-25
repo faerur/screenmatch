@@ -1,12 +1,17 @@
 package br.com.alura.screenmatch.principal;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 import br.com.alura.screenmatch.model.DadosEpisodio;
 import br.com.alura.screenmatch.model.DadosSerie;
 import br.com.alura.screenmatch.model.DadosTemporada;
+import br.com.alura.screenmatch.model.Episodio;
 import br.com.alura.screenmatch.services.ConsomeApi;
 import br.com.alura.screenmatch.services.ConverteDadosJson;
 import br.com.alura.screenmatch.services.IConverteDados;
@@ -38,20 +43,34 @@ public class Principal {
 //				System.out.println(temporada.episodios().get(k));
 //			}
 //		}
+		List<DadosEpisodio> listaEpisodios = temporadas.stream().flatMap(t -> t.episodios().stream()).collect(Collectors.toList());
 		
-		temporadas.forEach(System.out::println);
-
-        temporadas.forEach(t -> t.episodios().forEach(e -> System.out.println(e.titulo())));
+		listaEpisodios.stream()
+		.filter(e -> !e.avaliacao().equalsIgnoreCase("N/A"))
+		.sorted(Comparator.comparing(DadosEpisodio::avaliacao).reversed())
+		.limit(5)
+		.forEach(System.out::println);
 		
+        List<Episodio> episodios = temporadas.stream()
+        		.flatMap(t -> t.episodios().stream().map(d -> new Episodio(t.numero(), d))
+        				).collect(Collectors.toList());
 		
-		json = consumir.obterDados("https://www.omdbapi.com/?apikey=ef9c0a95&t=icarly&season=1&episode=1");
-		DadosEpisodio episodio = conversor.obterDados(json, DadosEpisodio.class);
-
-		json = consumir.obterDados("https://www.omdbapi.com/?apikey=ef9c0a95&t=icarly&season=1");
-		DadosTemporada temporada = conversor.obterDados(json, DadosTemporada.class);
-
-		System.out.println(dados);
-		System.out.println(episodio);
-		System.out.println(temporada);
+        System.out.println("A partir de que ano você deseja ver os episódios? ");
+        var ano = scanner.nextInt();
+        scanner.nextLine();
+        DateTimeFormatter formatador = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        
+		episodios.stream()
+		.filter(e ->  e.getDataLancamento() != null && e.getDataLancamento().isAfter(LocalDate.of(ano, 1,1)))
+		.sorted(Comparator.comparingDouble(Episodio::getAvaliacao).reversed())
+		.limit(5)
+		.forEach(
+				e -> System.out.println(
+						"Temporada: " + e.getTemporada() +
+							"\nEpisódio: " + e.getTitulo() +
+							"\nAvaliação: " + e.getAvaliacao() + 
+							"\nData lançamento: " + e.getDataLancamento().format(formatador)
+						)
+				);
 	}
 }
